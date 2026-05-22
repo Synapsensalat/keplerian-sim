@@ -14,6 +14,38 @@ pub use compact_orbit::CompactOrbit2D;
 #[cfg(feature = "serde")]
 use serde::{Deserialize, Serialize};
 
+/// Direction of travel for a 2D orbit.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+#[cfg_attr(feature = "serde", derive(Serialize, Deserialize))]
+pub enum OrbitDirection2D {
+    /// Positive angular momentum; true anomaly advances counter-clockwise in XY.
+    #[default]
+    CounterClockwise,
+    /// Negative angular momentum; true anomaly advances clockwise in XY.
+    Clockwise,
+}
+
+impl OrbitDirection2D {
+    /// Returns `1.0` for counter-clockwise and `-1.0` for clockwise.
+    #[must_use]
+    pub const fn sign(self) -> f64 {
+        match self {
+            Self::CounterClockwise => 1.0,
+            Self::Clockwise => -1.0,
+        }
+    }
+
+    /// Gets the direction represented by a signed 2D angular momentum scalar.
+    #[must_use]
+    pub const fn from_angular_momentum(angular_momentum: f64) -> Self {
+        if angular_momentum < 0.0 {
+            Self::Clockwise
+        } else {
+            Self::CounterClockwise
+        }
+    }
+}
+
 /// A trait that defines the methods that a 2D-constrained Keplerian
 /// orbit must implement.
 ///
@@ -21,7 +53,7 @@ use serde::{Deserialize, Serialize};
 ///
 /// # Examples
 /// ```
-/// use keplerian_sim::{Orbit2D, OrbitTrait2D, CompactOrbit2D};
+/// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D, CompactOrbit2D};
 ///
 /// fn accepts_orbit(orbit: &impl OrbitTrait2D) {
 ///     println!("That's an orbit!");
@@ -39,7 +71,7 @@ use serde::{Deserialize, Serialize};
 /// This example will fail to compile:
 ///
 /// ```compile_fail
-/// # use keplerian_sim::{Orbit2D, OrbitTrait2D, CompactOrbit2D};
+/// # use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D, CompactOrbit2D};
 /// #
 /// # fn accepts_orbit(orbit: &impl OrbitTrait2D) {
 /// #     println!("That's an orbit!");
@@ -69,7 +101,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let mut orbit = Orbit2D::default();
     /// orbit.set_periapsis(50.0);
@@ -131,7 +163,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let mut orbit = Orbit2D::default();
     /// orbit.set_periapsis(50.0);
@@ -173,22 +205,22 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// // Closed (elliptic) orbit with eccentricity = 0.8
-    /// let closed = Orbit2D::new(0.8, 1.0, 0.0, 0.0, 1.0);
+    /// let closed = Orbit2D::new(0.8, 1.0, 0.0, 0.0, 1.0, OrbitDirection2D::CounterClockwise);
     ///
     /// // True anomaly asymptote is only defined for open orbits,
     /// // i.e., eccentricity ≥ 1
     /// assert!(closed.get_true_anomaly_at_asymptote().is_nan());
     ///
-    /// let parabolic = Orbit2D::new(1.0, 1.0, 0.0, 0.0, 1.0);
+    /// let parabolic = Orbit2D::new(1.0, 1.0, 0.0, 0.0, 1.0, OrbitDirection2D::CounterClockwise);
     /// assert_eq!(
     ///     parabolic.get_true_anomaly_at_asymptote(),
     ///     std::f64::consts::PI
     /// );
     ///
-    /// let hyperbolic = Orbit2D::new(2.0, 1.0, 0.0, 0.0, 1.0);
+    /// let hyperbolic = Orbit2D::new(2.0, 1.0, 0.0, 0.0, 1.0, OrbitDirection2D::CounterClockwise);
     /// let asymptote = 2.0943951023931957;
     /// assert_eq!(
     ///     hyperbolic.get_true_anomaly_at_asymptote(),
@@ -243,7 +275,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     /// use glam::DVec2;
     ///
     /// let orbit = Orbit2D::new(
@@ -252,6 +284,7 @@ pub trait OrbitTrait2D {
     ///     0.0, // Argument of periapsis
     ///     0.0, // Mean anomaly at epoch
     ///     1.0, // Gravitational parameter
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// assert_eq!(
@@ -299,7 +332,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{CompactOrbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, CompactOrbit2D, OrbitTrait2D};
     /// use glam::DVec2;
     ///
     /// let orbit = CompactOrbit2D::new(
@@ -308,6 +341,7 @@ pub trait OrbitTrait2D {
     ///     0.0, // Argument of periapsis
     ///     0.0, // Mean anomaly at epoch
     ///     1.0, // Gravitational parameter
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// let p_vector = orbit.get_pqw_basis_vector_p();
@@ -340,7 +374,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     /// use glam::DVec2;
     ///
     /// let orbit = Orbit2D::new(
@@ -349,6 +383,7 @@ pub trait OrbitTrait2D {
     ///     0.0, // Argument of periapsis
     ///     0.0, // Mean anomaly at epoch
     ///     1.0, // Gravitational parameter
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// assert_eq!(
@@ -396,7 +431,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{CompactOrbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, CompactOrbit2D, OrbitTrait2D};
     /// use glam::DVec2;
     ///
     /// let orbit = CompactOrbit2D::new(
@@ -405,6 +440,7 @@ pub trait OrbitTrait2D {
     ///     0.0, // Argument of periapsis
     ///     0.0, // Mean anomaly at epoch
     ///     1.0, // Gravitational parameter
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// let p_vector = orbit.get_pqw_basis_vector_p();
@@ -432,7 +468,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Examples
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let mut orbit = Orbit2D::default();
     /// orbit.set_eccentricity(0.5); // Elliptic
@@ -464,7 +500,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Examples
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let mut orbit = Orbit2D::default();
     /// orbit.set_periapsis(50.0);
@@ -506,7 +542,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Examples
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let mut base = Orbit2D::default();
     /// base.set_periapsis(50.0);
@@ -568,7 +604,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let orbit = Orbit2D::new(
     ///     0.8, // Eccentricity
@@ -576,6 +612,7 @@ pub trait OrbitTrait2D {
     ///     2.0, // Argument of periapsis
     ///     1.5, // Mean anomaly at epoch
     ///     0.8, // Gravitational parameter
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// let orbital_period = orbit.get_orbital_period();
@@ -609,7 +646,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let orbit = Orbit2D::new(
     ///     1.0, // Eccentricity
@@ -617,6 +654,7 @@ pub trait OrbitTrait2D {
     ///     2.9, // Argument of periapsis
     ///     0.8, // Mean anomaly at epoch
     ///     1.9, // Gravitational parameter
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// // From Wikipedia's focal parameter equation for parabolas (e = 1)
@@ -663,7 +701,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let orbit = Orbit2D::new(
     ///     1.2, // Eccentricity
@@ -671,6 +709,7 @@ pub trait OrbitTrait2D {
     ///     3.0, // Argument of periapsis
     ///     4.8, // Mean anomaly at epoch
     ///     5.0, // Gravitational parameter
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// const EXPECTED_VALUE: f64 = 4.69041575982343;
@@ -719,11 +758,11 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
-    /// let elliptic = Orbit2D::new(0.3, 1.0, 0.0, 0.0, 1.0);
-    /// let parabolic = Orbit2D::new(1.0, 1.0, 0.0, 0.0, 1.0);
-    /// let hyperbolic = Orbit2D::new(2.6, 1.0, 0.0, 0.0, 1.0);
+    /// let elliptic = Orbit2D::new(0.3, 1.0, 0.0, 0.0, 1.0, OrbitDirection2D::CounterClockwise);
+    /// let parabolic = Orbit2D::new(1.0, 1.0, 0.0, 0.0, 1.0, OrbitDirection2D::CounterClockwise);
+    /// let hyperbolic = Orbit2D::new(2.6, 1.0, 0.0, 0.0, 1.0, OrbitDirection2D::CounterClockwise);
     ///
     /// assert!(elliptic.get_specific_orbital_energy() < 0.0);
     /// assert!(parabolic.get_specific_orbital_energy() == 0.0);
@@ -749,7 +788,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let orbit = Orbit2D::new(
     ///     2.9, // Eccentricity
@@ -757,6 +796,7 @@ pub trait OrbitTrait2D {
     ///     0.2, // Argument of periapsis
     ///     0.9, // Mean anomaly at epoch
     ///     9.8, // Gravitational parameter
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// const EXPECTED_RATE: f64 = 6.842477621446782;
@@ -811,7 +851,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// const PERIAPSIS: f64 = 1.0;
     ///
@@ -821,6 +861,7 @@ pub trait OrbitTrait2D {
     ///     2.9, // Argument of periapsis
     ///     1.5, // Mean anomaly at epoch
     ///     1.0, // Gravitational parameter
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// let time_of_pe = orbit.get_time_of_periapsis();
@@ -862,7 +903,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// const APOAPSIS: f64 = 2.0;
     /// const PERIAPSIS: f64 = 1.0;
@@ -873,6 +914,7 @@ pub trait OrbitTrait2D {
     ///     2.9, // Argument of periapsis
     ///     1.5, // Mean anomaly at epoch
     ///     1.0, // Gravitational parameter
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// let time_of_ap = orbit.get_time_of_apoapsis();
@@ -908,7 +950,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     /// use glam::{DVec2, DMat2};
     ///
     /// let orbit = Orbit2D::default();
@@ -929,8 +971,8 @@ pub trait OrbitTrait2D {
     /// are the p and q basis vectors, respectively.
     ///
     /// The p basis vector is a unit vector that points to the periapsis.\
-    /// The q basis vector is orthogonal to that and points 90° counterclockwise
-    /// from the periapsis on the orbital plane.\
+    /// The q basis vector is orthogonal to that and points 90° in the orbit
+    /// direction from the periapsis on the orbital plane.\
     /// The w basis vector is orthogonal to the XY plane and is
     /// excluded from this function's output.
     ///
@@ -946,7 +988,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     /// use glam::DVec2;
     ///
     /// let orbit = Orbit2D::default();
@@ -982,7 +1024,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, CompactOrbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, CompactOrbit2D, OrbitTrait2D};
     /// use glam::DVec2;
     ///
     /// let orbit = Orbit2D::default();
@@ -1005,7 +1047,7 @@ pub trait OrbitTrait2D {
     /// system.
     ///
     /// The q basis vector is orthogonal to the p basis vector
-    /// and points 90° counterclockwise from the periapsis on the
+    /// and points 90° in the orbit direction from the periapsis on the
     /// orbital plane.
     ///
     /// For more information about the PQW system, visit the
@@ -1024,7 +1066,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, CompactOrbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, CompactOrbit2D, OrbitTrait2D};
     /// use glam::DVec2;
     ///
     /// let orbit = Orbit2D::default();
@@ -1042,6 +1084,34 @@ pub trait OrbitTrait2D {
     /// assert_eq!(q, DVec2::Y);
     /// ```
     fn get_pqw_basis_vector_q(&self) -> DVec2;
+
+    /// Gets the orbit direction.
+    ///
+    /// Counter-clockwise is the default direction and matches behavior from
+    /// older versions of this crate.
+    fn get_direction(&self) -> OrbitDirection2D;
+
+    /// Sets the orbit direction.
+    fn set_direction(&mut self, direction: OrbitDirection2D);
+
+    /// Gets whether the orbit advances clockwise in XY.
+    fn is_clockwise(&self) -> bool {
+        self.get_direction() == OrbitDirection2D::Clockwise
+    }
+
+    /// Gets whether the orbit advances counter-clockwise in XY.
+    fn is_counter_clockwise(&self) -> bool {
+        self.get_direction() == OrbitDirection2D::CounterClockwise
+    }
+
+    /// Sets the orbit direction from a boolean.
+    fn set_clockwise(&mut self, clockwise: bool) {
+        self.set_direction(if clockwise {
+            OrbitDirection2D::Clockwise
+        } else {
+            OrbitDirection2D::CounterClockwise
+        });
+    }
 
     /// Gets the eccentricity vector of this orbit.
     ///
@@ -1068,11 +1138,11 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     /// use glam::DVec2;
     ///
     /// // Parabolic orbit (e = 1)
-    /// let orbit = Orbit2D::new(1.0, 1.0, 0.0, 0.0, 1.0);
+    /// let orbit = Orbit2D::new(1.0, 1.0, 0.0, 0.0, 1.0, OrbitDirection2D::CounterClockwise);
     /// let eccentricity_vector = orbit.get_eccentricity_vector();
     ///
     /// assert_eq!(
@@ -1116,11 +1186,11 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{CompactOrbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, CompactOrbit2D, OrbitTrait2D};
     /// use glam::DVec2;
     ///
     /// // Parabolic orbit (e = 1)
-    /// let orbit = CompactOrbit2D::new(1.0, 1.0, 0.0, 0.0, 1.0);
+    /// let orbit = CompactOrbit2D::new(1.0, 1.0, 0.0, 0.0, 1.0, OrbitDirection2D::CounterClockwise);
     ///
     /// // Expensive op for compact orbit: get basis vectors
     /// let basis_vectors = orbit.get_pqw_basis_vectors();
@@ -1717,7 +1787,7 @@ pub trait OrbitTrait2D {
     /// ```
     /// use glam::DVec2;
     ///
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let mut orbit = Orbit2D::default();
     /// orbit.set_periapsis(100.0);
@@ -1776,7 +1846,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let mut orbit = Orbit2D::default();
     /// orbit.set_periapsis(100.0);
@@ -1819,7 +1889,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// const PERIAPSIS: f64 = 100.0;
     ///
@@ -1865,7 +1935,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// const PERIAPSIS: f64 = 100.0;
     ///
@@ -1930,7 +2000,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// const APOAPSIS: f64 = 200.0;
     /// const PERIAPSIS: f64 = 100.0;
@@ -1941,6 +2011,7 @@ pub trait OrbitTrait2D {
     ///     0.0, // Argument of periapsis
     ///     0.0, // Mean anomaly at epoch
     ///     1.0, // Gravitational parameter
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// let naive_getter = orbit.get_speed_at_altitude(APOAPSIS);
@@ -2039,7 +2110,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let orbit = Orbit2D::new(
     ///     1.0, // Eccentricity
@@ -2047,6 +2118,7 @@ pub trait OrbitTrait2D {
     ///     0.0, // Argument of periapsis
     ///     0.0, // Mean anomaly at epoch
     ///     1.0, // Gravitational parameter
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// assert_eq!(orbit.get_speed_at_infinity(), 0.0);
@@ -2171,7 +2243,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let mut orbit = Orbit2D::default();
     /// orbit.set_periapsis(100.0);
@@ -2235,7 +2307,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     /// use glam::DVec2;
     ///
     /// let mut orbit = Orbit2D::default();
@@ -2288,7 +2360,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     /// use glam::DVec2;
     ///
     /// let mut orbit = Orbit2D::default();
@@ -2339,7 +2411,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     /// use glam::DVec2;
     ///
     /// let mut orbit = Orbit2D::default();
@@ -2390,7 +2462,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     /// use glam::DVec2;
     ///
     /// let mut orbit = Orbit2D::default();
@@ -2572,7 +2644,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D, sinhcosh};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D, sinhcosh};
     ///
     /// # fn main() {
     /// let orbit = Orbit2D::default();
@@ -2597,7 +2669,7 @@ pub trait OrbitTrait2D {
     /// }
     /// ```
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D, sinhcosh};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D, sinhcosh};
     ///
     /// # fn main() {
     /// let mut hyperbolic = Orbit2D::default();
@@ -2724,7 +2796,7 @@ pub trait OrbitTrait2D {
     /// # Example
     /// ```
     /// use glam::DVec2;
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let mut orbit = Orbit2D::default();
     /// orbit.set_periapsis(100.0);
@@ -2780,7 +2852,7 @@ pub trait OrbitTrait2D {
     /// # Example
     /// ```
     /// use glam::DVec2;
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let mut orbit = Orbit2D::default();
     /// orbit.set_periapsis(100.0);
@@ -2911,7 +2983,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let mut orbit = Orbit2D::default();
     /// orbit.set_periapsis(100.0);
@@ -2946,7 +3018,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let mut orbit = Orbit2D::default();
     /// orbit.set_periapsis(100.0);
@@ -2984,7 +3056,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let mut orbit = Orbit2D::default();
     /// orbit.set_periapsis(100.0);
@@ -3019,7 +3091,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let mut orbit = Orbit2D::default();
     /// orbit.set_periapsis(100.0);
@@ -3054,7 +3126,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let mut orbit = Orbit2D::default();
     /// orbit.set_periapsis(100.0);
@@ -3078,7 +3150,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let mut orbit = Orbit2D::default();
     /// orbit.set_periapsis(100.0);
@@ -3203,7 +3275,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let mut orbit = Orbit2D::default();
     /// orbit.set_periapsis(100.0);
@@ -3252,7 +3324,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let mut orbit = Orbit2D::default();
     /// orbit.set_periapsis(100.0);
@@ -3310,7 +3382,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let mut orbit = Orbit2D::default();
     /// orbit.set_periapsis(100.0);
@@ -3654,7 +3726,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D, StateVectors2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D, StateVectors2D};
     ///
     /// # fn main() {
     /// // Elliptic (circular) case
@@ -3691,7 +3763,7 @@ pub trait OrbitTrait2D {
     /// # }
     /// ```
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D, sinhcosh, StateVectors2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D, sinhcosh, StateVectors2D};
     ///
     /// # fn main() {
     /// // Hyperbolic case
@@ -3758,7 +3830,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let orbit = Orbit2D::new(
     ///     2.1, // Eccentricity
@@ -3766,6 +3838,7 @@ pub trait OrbitTrait2D {
     ///     2.9, // Argument of periapsis
     ///     1.0, // Mean anomaly at epoch
     ///     1.0, // Gravitational parameter
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// const TIME: f64 = 2.0;
@@ -4051,7 +4124,7 @@ pub trait OrbitTrait2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D, MuSetterMode2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D, MuSetterMode2D};
     ///
     /// let mut orbit = Orbit2D::new(
     ///     0.0, // Eccentricity
@@ -4059,6 +4132,7 @@ pub trait OrbitTrait2D {
     ///     0.0, // Argument of Periapsis
     ///     0.0, // Mean anomaly at epoch
     ///     1.0, // Gravitational parameter (mu = GM)
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// orbit.set_gravitational_parameter(3.0, MuSetterMode2D::KeepElements);
@@ -4151,7 +4225,7 @@ impl StateVectors2D {
     /// # Examples
     /// Simple use-case:
     /// ```
-    /// use keplerian_sim::{CompactOrbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, CompactOrbit2D, OrbitTrait2D};
     ///
     /// let orbit = CompactOrbit2D::default();
     /// let mu = orbit.get_gravitational_parameter();
@@ -4166,7 +4240,7 @@ impl StateVectors2D {
     /// ```
     /// To simulate an instantaneous 0.1 m/s prograde burn at periapsis:
     /// ```
-    /// use keplerian_sim::{CompactOrbit2D, OrbitTrait2D, StateVectors2D};
+    /// use keplerian_sim::{OrbitDirection2D, CompactOrbit2D, OrbitTrait2D, StateVectors2D};
     /// use glam::DVec2;
     ///
     /// let orbit = CompactOrbit2D::default();
@@ -4197,6 +4271,7 @@ impl StateVectors2D {
     ///         0.0, // argument of periapsis
     ///         0.0, // mean anomaly
     ///         1.0, // gravitational parameter
+    ///         OrbitDirection2D::CounterClockwise,
     ///     )
     /// );
     /// ```
@@ -4225,6 +4300,7 @@ impl StateVectors2D {
         // momentum = px * vy - py * vx
         let angular_momentum =
             self.position.x * self.velocity.y - self.position.y * self.velocity.x;
+        let direction = OrbitDirection2D::from_angular_momentum(angular_momentum);
 
         // Step 3: Inclination
         // Inclination is 0.
@@ -4312,14 +4388,15 @@ impl StateVectors2D {
         // meanwhile `matrix.e*2` describes the Q basis vector.
 
         let (sin_arg_pe, cos_arg_pe) = arg_pe.sin_cos();
+        let direction_sign = direction.sign();
 
         let p_x = cos_arg_pe;
         let p_y = sin_arg_pe;
 
         let p = DVec2::new(p_x, p_y);
 
-        let q_x = -sin_arg_pe;
-        let q_y = cos_arg_pe;
+        let q_x = -sin_arg_pe * direction_sign;
+        let q_y = cos_arg_pe * direction_sign;
 
         let q = DVec2::new(q_x, q_y);
 
@@ -4446,7 +4523,14 @@ impl StateVectors2D {
             mean_anomaly_at_epoch
         };
 
-        CompactOrbit2D::new(eccentricity, periapsis, arg_pe, mean_anomaly_at_epoch, mu)
+        CompactOrbit2D::new(
+            eccentricity,
+            periapsis,
+            arg_pe,
+            mean_anomaly_at_epoch,
+            mu,
+            direction,
+        )
     }
 
     /// Create a new [`Orbit2D`] struct from the state
@@ -4491,7 +4575,7 @@ impl StateVectors2D {
     /// # Examples
     /// Simple use-case:
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D};
     ///
     /// let orbit = Orbit2D::default();
     /// let mu = orbit.get_gravitational_parameter();
@@ -4506,7 +4590,7 @@ impl StateVectors2D {
     /// ```
     /// To simulate an instantaneous 0.1 m/s prograde burn at periapsis:
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D, StateVectors2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D, StateVectors2D};
     /// use glam::DVec2;
     ///
     /// let orbit = Orbit2D::default();
@@ -4537,6 +4621,7 @@ impl StateVectors2D {
     ///         0.0, // argument of periapsis
     ///         0.0, // mean anomaly
     ///         1.0, // gravitational parameter
+    ///         OrbitDirection2D::CounterClockwise,
     ///     )
     /// )
     /// ```
@@ -4621,7 +4706,7 @@ pub enum MuSetterMode2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D, MuSetterMode2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D, MuSetterMode2D};
     ///
     /// let mut orbit = Orbit2D::new(
     ///     0.0, // Eccentricity
@@ -4629,6 +4714,7 @@ pub enum MuSetterMode2D {
     ///     0.0, // Argument of Periapsis
     ///     0.0, // Mean anomaly at epoch
     ///     1.0, // Gravitational parameter (mu = GM)
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// orbit.set_gravitational_parameter(3.0, MuSetterMode2D::KeepElements);
@@ -4656,7 +4742,7 @@ pub enum MuSetterMode2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D, MuSetterMode2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D, MuSetterMode2D};
     ///
     /// let mut orbit = Orbit2D::new(
     ///     0.0, // Eccentricity
@@ -4664,6 +4750,7 @@ pub enum MuSetterMode2D {
     ///     0.0, // Argument of Periapsis
     ///     0.0, // Mean anomaly at epoch
     ///     1.0, // Gravitational parameter (mu = GM)
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// orbit.set_gravitational_parameter(
@@ -4703,7 +4790,7 @@ pub enum MuSetterMode2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D, MuSetterMode2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D, MuSetterMode2D};
     ///
     /// let mut orbit = Orbit2D::new(
     ///     0.0, // Eccentricity
@@ -4711,6 +4798,7 @@ pub enum MuSetterMode2D {
     ///     0.0, // Argument of Periapsis
     ///     0.0, // Mean anomaly at epoch
     ///     1.0, // Gravitational parameter (mu = GM)
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// let time = 0.75;
@@ -4771,7 +4859,7 @@ pub enum MuSetterMode2D {
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D, MuSetterMode2D};
+    /// use keplerian_sim::{OrbitDirection2D, Orbit2D, OrbitTrait2D, MuSetterMode2D};
     ///
     /// let old_orbit = Orbit2D::new(
     ///     0.0, // Eccentricity
@@ -4779,6 +4867,7 @@ pub enum MuSetterMode2D {
     ///     0.0, // Argument of Periapsis
     ///     0.0, // Mean anomaly at epoch
     ///     1.0, // Gravitational parameter (mu = GM)
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// let mut new_orbit = old_orbit.clone();

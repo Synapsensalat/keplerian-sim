@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "libm")]
 #[allow(unused_imports)]
 use crate::math::F64Math;
-use crate::{ApoapsisSetterError, MuSetterMode2D, Orbit2D, OrbitTrait2D};
+use crate::{ApoapsisSetterError, MuSetterMode2D, Orbit2D, OrbitDirection2D, OrbitTrait2D};
 
 /// A minimal struct representing a 2D Keplerian orbit.
 ///
@@ -20,7 +20,7 @@ use crate::{ApoapsisSetterError, MuSetterMode2D, Orbit2D, OrbitTrait2D};
 ///
 /// # Example
 /// ```
-/// use keplerian_sim::{CompactOrbit2D, OrbitTrait2D};
+/// use keplerian_sim::{CompactOrbit2D, OrbitDirection2D, OrbitTrait2D};
 ///
 /// let orbit = CompactOrbit2D::new(
 ///     // Initialize using eccentricity, periapsis,
@@ -41,6 +41,9 @@ use crate::{ApoapsisSetterError, MuSetterMode2D, Orbit2D, OrbitTrait2D};
 ///
 ///     // Gravitational parameter of the parent body
 ///     1.0,
+///
+///     // Direction of travel
+///     OrbitDirection2D::CounterClockwise,
 /// );
 ///
 /// let orbit = CompactOrbit2D::with_apoapsis(
@@ -60,6 +63,9 @@ use crate::{ApoapsisSetterError, MuSetterMode2D, Orbit2D, OrbitTrait2D};
 ///
 ///     // Gravitational parameter of the parent body
 ///     1.0,
+///
+///     // Direction of travel
+///     OrbitDirection2D::CounterClockwise,
 /// );
 /// ```
 /// See [`CompactOrbit2D::new`] and [`CompactOrbit2D::with_apoapsis`] for more information.
@@ -116,6 +122,10 @@ pub struct CompactOrbit2D {
     ///
     /// In other words, mu = GM.
     pub mu: f64,
+
+    /// Direction of travel in the XY plane.
+    #[cfg_attr(feature = "serde", serde(default))]
+    pub direction: OrbitDirection2D,
 }
 
 impl CompactOrbit2D {
@@ -131,10 +141,11 @@ impl CompactOrbit2D {
     /// - `arg_pe`: The argument of periapsis of the orbit, in radians.
     /// - `mean_anomaly`: The mean anomaly of the orbit at epoch, in radians.
     /// - `mu`: The gravitational parameter of the parent body, in m^3 s^-2.
+    /// - `direction`: The direction of travel in the XY plane.
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{CompactOrbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{CompactOrbit2D, OrbitDirection2D, OrbitTrait2D};
     ///
     /// let eccentricity = 0.2;
     /// let periapsis = 2.8;
@@ -148,6 +159,7 @@ impl CompactOrbit2D {
     ///     argument_of_periapsis,
     ///     mean_anomaly_at_epoch,
     ///     gravitational_parameter,
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// assert_eq!(orbit.eccentricity, eccentricity);
@@ -157,13 +169,21 @@ impl CompactOrbit2D {
     /// assert_eq!(orbit.mu, gravitational_parameter);
     /// ```
     #[must_use]
-    pub fn new(eccentricity: f64, periapsis: f64, arg_pe: f64, mean_anomaly: f64, mu: f64) -> Self {
+    pub fn new(
+        eccentricity: f64,
+        periapsis: f64,
+        arg_pe: f64,
+        mean_anomaly: f64,
+        mu: f64,
+        direction: OrbitDirection2D,
+    ) -> Self {
         Self {
             eccentricity,
             periapsis,
             arg_pe,
             mean_anomaly,
             mu,
+            direction,
         }
     }
 
@@ -182,10 +202,11 @@ impl CompactOrbit2D {
     /// - `arg_pe`: The argument of periapsis of the orbit, in radians.
     /// - `mean_anomaly`: The mean anomaly of the orbit at epoch, in radians.
     /// - `mu`: The gravitational parameter of the parent body, in m^3 s^-2.
+    /// - `direction`: The direction of travel in the XY plane.
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{CompactOrbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{CompactOrbit2D, OrbitDirection2D, OrbitTrait2D};
     ///
     /// let apoapsis = 4.1;
     /// let periapsis = 2.8;
@@ -198,7 +219,8 @@ impl CompactOrbit2D {
     ///     periapsis,
     ///     argument_of_periapsis,
     ///     mean_anomaly_at_epoch,
-    ///     gravitational_parameter
+    ///     gravitational_parameter,
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// let eccentricity = (apoapsis - periapsis) / (apoapsis + periapsis);
@@ -216,6 +238,7 @@ impl CompactOrbit2D {
         arg_pe: f64,
         mean_anomaly: f64,
         mu: f64,
+        direction: OrbitDirection2D,
     ) -> Self {
         let eccentricity = (apoapsis - periapsis) / (apoapsis + periapsis);
         Self {
@@ -224,6 +247,7 @@ impl CompactOrbit2D {
             arg_pe,
             mean_anomaly,
             mu,
+            direction,
         }
     }
 
@@ -233,10 +257,11 @@ impl CompactOrbit2D {
     /// - `radius`: The radius of the orbit, in meters.
     /// - `mean_anomaly`: The mean anomaly of hte orbit at epoch, in radians.
     /// - `mu`: The gravitational parameter of the parent body, in m^3 s^-2.
+    /// - `direction`: The direction of travel in the XY plane.
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{CompactOrbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{CompactOrbit2D, OrbitDirection2D, OrbitTrait2D};
     ///
     /// let radius = 4.2;
     /// let mean_anomaly_at_epoch = 1.5;
@@ -246,6 +271,7 @@ impl CompactOrbit2D {
     ///     radius,
     ///     mean_anomaly_at_epoch,
     ///     gravitational_parameter,
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// assert_eq!(orbit.eccentricity, 0.0);
@@ -255,13 +281,19 @@ impl CompactOrbit2D {
     /// assert_eq!(orbit.mu, gravitational_parameter);
     /// ```
     #[must_use]
-    pub fn new_circular(radius: f64, mean_anomaly: f64, mu: f64) -> Self {
+    pub fn new_circular(
+        radius: f64,
+        mean_anomaly: f64,
+        mu: f64,
+        direction: OrbitDirection2D,
+    ) -> Self {
         Self {
             eccentricity: 0.0,
             periapsis: radius,
             arg_pe: 0.0,
             mean_anomaly,
             mu,
+            direction,
         }
     }
 }
@@ -299,6 +331,7 @@ impl OrbitTrait2D for CompactOrbit2D {
     #[inline]
     fn get_transformation_matrix(&self) -> DMat2 {
         let (sin_arg_pe, cos_arg_pe) = self.arg_pe.sin_cos();
+        let direction = self.direction.sign();
 
         // From https://downloads.rene-schwarz.com/download/M001-Keplerian_Orbit_Elements_to_Cartesian_State_Vectors.pdf
         // matrix.e11 = cos_arg_pe * cos_lan - sin_arg_pe * cos_inc * sin_lan;
@@ -318,7 +351,7 @@ impl OrbitTrait2D for CompactOrbit2D {
 
         DMat2 {
             x_axis: DVec2::new(cos_arg_pe, sin_arg_pe),
-            y_axis: DVec2::new(-sin_arg_pe, cos_arg_pe),
+            y_axis: DVec2::new(-sin_arg_pe * direction, cos_arg_pe * direction),
         }
     }
 
@@ -330,6 +363,16 @@ impl OrbitTrait2D for CompactOrbit2D {
     #[inline]
     fn get_pqw_basis_vector_q(&self) -> DVec2 {
         self.get_transformation_matrix().y_axis
+    }
+
+    #[inline]
+    fn get_direction(&self) -> OrbitDirection2D {
+        self.direction
+    }
+
+    #[inline]
+    fn set_direction(&mut self, direction: OrbitDirection2D) {
+        self.direction = direction;
     }
 
     #[inline]
@@ -433,6 +476,7 @@ impl From<Orbit2D> for CompactOrbit2D {
             arg_pe: cached.get_arg_pe(),
             mean_anomaly: cached.get_mean_anomaly_at_epoch(),
             mu: cached.get_gravitational_parameter(),
+            direction: cached.get_direction(),
         }
     }
 }
@@ -445,6 +489,6 @@ impl Default for CompactOrbit2D {
     ///
     /// It also uses a gravitational parameter of 1.
     fn default() -> Self {
-        Self::new_circular(1.0, 0.0, 1.0)
+        Self::new_circular(1.0, 0.0, 1.0, OrbitDirection2D::CounterClockwise)
     }
 }

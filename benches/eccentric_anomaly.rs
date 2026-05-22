@@ -1,5 +1,7 @@
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
-use keplerian_sim::{CompactOrbit, CompactOrbit2D, Orbit, Orbit2D, OrbitTrait, OrbitTrait2D};
+use keplerian_sim::{
+    CompactOrbit, CompactOrbit2D, Orbit, Orbit2D, OrbitDirection2D, OrbitTrait, OrbitTrait2D,
+};
 use std::hint::black_box;
 
 const POLL_ITERS: u64 = 1024;
@@ -28,7 +30,14 @@ fn criterion_benchmark(c: &mut Criterion) {
     let compact2d = CompactOrbit2D::from(orbit2d.clone());
 
     let hyperbolic = Orbit::new(2.9, 1.0, 2.19, 0.44, 0.61, 0.98, 1.0);
-    let hyperbolic2d = Orbit2D::new(2.9, 1.0, 0.44, 0.98, 1.0);
+    let hyperbolic2d = Orbit2D::new(
+        2.9,
+        1.0,
+        0.44,
+        0.98,
+        1.0,
+        OrbitDirection2D::CounterClockwise,
+    );
     let compact_hyperbolic = CompactOrbit::from(hyperbolic.clone());
     let compact_hyperbolic2d = CompactOrbit2D::from(hyperbolic2d.clone());
 

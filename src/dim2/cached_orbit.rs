@@ -6,7 +6,7 @@ use serde::{Deserialize, Serialize};
 #[cfg(feature = "libm")]
 #[allow(unused_imports)]
 use crate::math::F64Math;
-use crate::{ApoapsisSetterError, CompactOrbit2D, MuSetterMode2D, OrbitTrait2D};
+use crate::{ApoapsisSetterError, CompactOrbit2D, MuSetterMode2D, OrbitDirection2D, OrbitTrait2D};
 
 /// A struct representing a 2D Keplerian orbit with some cached values.
 ///
@@ -17,7 +17,7 @@ use crate::{ApoapsisSetterError, CompactOrbit2D, MuSetterMode2D, OrbitTrait2D};
 ///
 /// # Example
 /// ```
-/// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+/// use keplerian_sim::{Orbit2D, OrbitDirection2D, OrbitTrait2D};
 ///
 /// let orbit = Orbit2D::new(
 ///     // Initialize using eccentricity, periapsis,
@@ -38,6 +38,9 @@ use crate::{ApoapsisSetterError, CompactOrbit2D, MuSetterMode2D, OrbitTrait2D};
 ///
 ///     // Gravitational parameter of the parent body
 ///     1.0,
+///
+///     // Direction of travel
+///     OrbitDirection2D::CounterClockwise,
 /// );
 ///
 /// let orbit = Orbit2D::with_apoapsis(
@@ -57,6 +60,9 @@ use crate::{ApoapsisSetterError, CompactOrbit2D, MuSetterMode2D, OrbitTrait2D};
 ///
 ///     // Gravitational parameter of the parent body
 ///     1.0,
+///
+///     // Direction of travel
+///     OrbitDirection2D::CounterClockwise,
 /// );
 /// ```
 ///
@@ -115,6 +121,10 @@ pub struct Orbit2D {
     /// In other words, mu = GM.
     mu: f64,
 
+    /// Direction of travel in the XY plane.
+    #[cfg_attr(feature = "serde", serde(default))]
+    direction: OrbitDirection2D,
+
     cache: OrbitCachedCalculations,
 }
 
@@ -143,11 +153,12 @@ impl Orbit2D {
     /// - `arg_pe`: The argument of periapsis of the orbit, in radians.
     /// - `mean_anomaly`: The mean anomaly of the orbit at epoch, in radians.
     /// - `mu`: The gravitational parameter of the parent body, in m^3 s^-2.
+    /// - `direction`: The direction of travel in the XY plane.
     ///
     /// # Example
     ///
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{Orbit2D, OrbitDirection2D, OrbitTrait2D};
     ///
     /// let eccentricity = 0.2;
     /// let periapsis = 2.8;
@@ -160,7 +171,8 @@ impl Orbit2D {
     ///     periapsis,
     ///     argument_of_periapsis,
     ///     mean_anomaly_at_epoch,
-    ///     gravitational_parameter
+    ///     gravitational_parameter,
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// assert_eq!(orbit.get_eccentricity(), eccentricity);
@@ -170,14 +182,22 @@ impl Orbit2D {
     /// assert_eq!(orbit.get_gravitational_parameter(), gravitational_parameter);
     /// ```
     #[must_use]
-    pub fn new(eccentricity: f64, periapsis: f64, arg_pe: f64, mean_anomaly: f64, mu: f64) -> Self {
-        let cache = Self::get_cached_calculations(arg_pe);
+    pub fn new(
+        eccentricity: f64,
+        periapsis: f64,
+        arg_pe: f64,
+        mean_anomaly: f64,
+        mu: f64,
+        direction: OrbitDirection2D,
+    ) -> Self {
+        let cache = Self::get_cached_calculations(arg_pe, direction);
         Self {
             eccentricity,
             periapsis,
             arg_pe,
             mean_anomaly,
             mu,
+            direction,
             cache,
         }
     }
@@ -196,10 +216,11 @@ impl Orbit2D {
     /// - `arg_pe`: The argument of periapsis of the orbit, in radians.
     /// - `mean_anomaly`: The mean anomaly of the orbit at epoch, in radians.
     /// - `mu`: The gravitational parameter of the parent body, in m^3 s^-2.
+    /// - `direction`: The direction of travel in the XY plane.
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{Orbit2D, OrbitDirection2D, OrbitTrait2D};
     ///
     /// let apoapsis = 4.1;
     /// let periapsis = 2.8;
@@ -212,7 +233,8 @@ impl Orbit2D {
     ///     periapsis,
     ///     argument_of_periapsis,
     ///     mean_anomaly_at_epoch,
-    ///     gravitational_parameter
+    ///     gravitational_parameter,
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// let eccentricity = (apoapsis - periapsis) / (apoapsis + periapsis);
@@ -230,9 +252,10 @@ impl Orbit2D {
         arg_pe: f64,
         mean_anomaly: f64,
         mu: f64,
+        direction: OrbitDirection2D,
     ) -> Self {
         let eccentricity = (apoapsis - periapsis) / (apoapsis + periapsis);
-        Self::new(eccentricity, periapsis, arg_pe, mean_anomaly, mu)
+        Self::new(eccentricity, periapsis, arg_pe, mean_anomaly, mu, direction)
     }
 
     /// Creates a new circular `Orbit2D` instance with the given parameters.
@@ -242,10 +265,11 @@ impl Orbit2D {
     /// - `arg_pe`: The argument of periapsis of the orbit, in radians.
     /// - `mean_anomaly`: The mean anomaly of the orbit at epoch, in radians.
     /// - `mu`: The gravitational parameter of the parent body, in m^3 s^-2.
+    /// - `direction`: The direction of travel in the XY plane.
     ///
     /// # Example
     /// ```
-    /// use keplerian_sim::{Orbit2D, OrbitTrait2D};
+    /// use keplerian_sim::{Orbit2D, OrbitDirection2D, OrbitTrait2D};
     ///
     /// let radius = 4.2;
     /// let mean_anomaly_at_epoch = 1.5;
@@ -255,6 +279,7 @@ impl Orbit2D {
     ///     radius,
     ///     mean_anomaly_at_epoch,
     ///     gravitational_parameter,
+    ///     OrbitDirection2D::CounterClockwise,
     /// );
     ///
     /// assert_eq!(orbit.get_eccentricity(), 0.0);
@@ -264,10 +289,15 @@ impl Orbit2D {
     /// assert_eq!(orbit.get_gravitational_parameter(), gravitational_parameter);
     /// ```
     #[must_use]
-    pub fn new_circular(radius: f64, mean_anomaly: f64, mu: f64) -> Self {
-        let matrix = DMat2::IDENTITY;
+    pub fn new_circular(
+        radius: f64,
+        mean_anomaly: f64,
+        mu: f64,
+        direction: OrbitDirection2D,
+    ) -> Self {
+        let matrix = Self::get_transformation_matrix(0.0, direction);
 
-        debug_assert_eq!(matrix, Self::get_transformation_matrix(0.0));
+        debug_assert_eq!(matrix, Self::get_transformation_matrix(0.0, direction));
 
         Self {
             eccentricity: 0.0,
@@ -275,6 +305,7 @@ impl Orbit2D {
             arg_pe: 0.0,
             mean_anomaly,
             mu,
+            direction,
             cache: OrbitCachedCalculations {
                 transformation_matrix: matrix,
             },
@@ -283,22 +314,25 @@ impl Orbit2D {
 
     /// Updates the cached values in the orbit struct.
     ///
-    /// Should only be called when the following things change:
-    /// 1. Argument of periapsis
+    /// Should only be called when cached source fields change.
     fn update_cache(&mut self) {
-        self.cache = Self::get_cached_calculations(self.arg_pe);
+        self.cache = Self::get_cached_calculations(self.arg_pe, self.direction);
     }
 
-    fn get_cached_calculations(arg_pe: f64) -> OrbitCachedCalculations {
-        let transformation_matrix = Self::get_transformation_matrix(arg_pe);
+    fn get_cached_calculations(
+        arg_pe: f64,
+        direction: OrbitDirection2D,
+    ) -> OrbitCachedCalculations {
+        let transformation_matrix = Self::get_transformation_matrix(arg_pe, direction);
 
         OrbitCachedCalculations {
             transformation_matrix,
         }
     }
 
-    fn get_transformation_matrix(arg_pe: f64) -> DMat2 {
+    fn get_transformation_matrix(arg_pe: f64, direction: OrbitDirection2D) -> DMat2 {
         let (sin_arg_pe, cos_arg_pe) = arg_pe.sin_cos();
+        let direction = direction.sign();
 
         // From https://downloads.rene-schwarz.com/download/M001-Keplerian_Orbit_Elements_to_Cartesian_State_Vectors.pdf
         // matrix.e11 = cos_arg_pe * cos_lan - sin_arg_pe * cos_inc * sin_lan;
@@ -318,7 +352,7 @@ impl Orbit2D {
 
         DMat2 {
             x_axis: DVec2::new(cos_arg_pe, sin_arg_pe),
-            y_axis: DVec2::new(-sin_arg_pe, cos_arg_pe),
+            y_axis: DVec2::new(-sin_arg_pe * direction, cos_arg_pe * direction),
         }
     }
 }
@@ -367,6 +401,16 @@ impl OrbitTrait2D for Orbit2D {
     #[inline]
     fn get_pqw_basis_vector_q(&self) -> DVec2 {
         self.cache.transformation_matrix.y_axis
+    }
+
+    #[inline]
+    fn get_direction(&self) -> OrbitDirection2D {
+        self.direction
+    }
+
+    fn set_direction(&mut self, direction: OrbitDirection2D) {
+        self.direction = direction;
+        self.update_cache();
     }
 
     #[inline]
@@ -470,6 +514,7 @@ impl From<CompactOrbit2D> for Orbit2D {
             compact.arg_pe,
             compact.mean_anomaly,
             compact.mu,
+            compact.direction,
         )
     }
 }
@@ -482,6 +527,6 @@ impl Default for Orbit2D {
     ///
     /// It also uses a gravitational parameter of 1.
     fn default() -> Self {
-        Self::new_circular(1.0, 0.0, 1.0)
+        Self::new_circular(1.0, 0.0, 1.0, OrbitDirection2D::CounterClockwise)
     }
 }

@@ -1,6 +1,6 @@
 use core::f64::consts::TAU;
 
-use crate::{CompactOrbit, CompactOrbit2D};
+use crate::{CompactOrbit, CompactOrbit2D, OrbitDirection2D};
 
 #[allow(dead_code)]
 pub(super) fn random_mult() -> f64 {
@@ -29,6 +29,14 @@ pub(super) fn random_circular() -> CompactOrbit {
     )
 }
 
+pub(super) fn random_direction_2d() -> OrbitDirection2D {
+    if rand::random_bool(0.5) {
+        OrbitDirection2D::Clockwise
+    } else {
+        OrbitDirection2D::CounterClockwise
+    }
+}
+
 pub(super) fn random_circular_2d() -> CompactOrbit2D {
     CompactOrbit2D::new(
         0.0,
@@ -36,6 +44,7 @@ pub(super) fn random_circular_2d() -> CompactOrbit2D {
         rand::random_range(-TAU..TAU),
         rand::random_range(-TAU..TAU),
         rand::random_range(0.01..1e6),
+        random_direction_2d(),
     )
 }
 
@@ -62,6 +71,7 @@ pub(super) fn random_elliptic_2d() -> CompactOrbit2D {
         rand::random_range(-TAU..TAU),
         rand::random_range(-TAU..TAU),
         rand::random_range(0.01..1e6),
+        random_direction_2d(),
     )
 }
 
@@ -88,6 +98,7 @@ pub(super) fn random_near_parabolic_2d() -> CompactOrbit2D {
         rand::random_range(-TAU..TAU),
         rand::random_range(-TAU..TAU),
         rand::random_range(0.01..1e6),
+        random_direction_2d(),
     )
 }
 
@@ -114,6 +125,7 @@ pub(super) fn random_parabolic_2d() -> CompactOrbit2D {
         rand::random_range(-TAU..TAU),
         rand::random_range(-TAU..TAU),
         rand::random_range(0.01..1e6),
+        random_direction_2d(),
     )
 }
 
@@ -140,6 +152,7 @@ pub(super) fn random_hyperbolic_2d() -> CompactOrbit2D {
         rand::random_range(-TAU..TAU),
         rand::random_range(-TAU..TAU),
         rand::random_range(0.01..1e6),
+        random_direction_2d(),
     )
 }
 
@@ -166,6 +179,7 @@ pub(super) fn random_very_hyperbolic_2d() -> CompactOrbit2D {
         rand::random_range(-TAU..TAU),
         rand::random_range(-TAU..TAU),
         rand::random_range(0.01..1e6),
+        random_direction_2d(),
     )
 }
 
@@ -192,6 +206,7 @@ pub(super) fn random_extremely_hyperbolic_2d() -> CompactOrbit2D {
         rand::random_range(-TAU..TAU),
         rand::random_range(-TAU..TAU),
         rand::random_range(0.01..1e6),
+        random_direction_2d(),
     )
 }
 

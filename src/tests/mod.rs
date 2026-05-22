@@ -3,8 +3,8 @@
 #![allow(clippy::clone_on_copy)]
 extern crate std;
 use crate::{
-    CompactOrbit, CompactOrbit2D, Matrix3x2, MuSetterMode, Orbit, Orbit2D, OrbitTrait,
-    OrbitTrait2D, StateVectors, StateVectors2D,
+    CompactOrbit, CompactOrbit2D, Matrix3x2, MuSetterMode, Orbit, Orbit2D, OrbitDirection2D,
+    OrbitTrait, OrbitTrait2D, StateVectors, StateVectors2D,
 };
 use core::{
     f64::consts::{PI, TAU},
@@ -59,6 +59,70 @@ fn unit_orbit_angle_2d() {
             ("unit orbit 4", 1.5 * PI, DVec2::new(0.0, -1.0)),
             ("unit orbit 5", 2.0 * PI, DVec2::new(1.0, 0.0)),
         ],
+    );
+}
+
+#[test]
+fn clockwise_2d_circular_orbit_flips_velocity_not_position_at_periapsis() {
+    let counter_clockwise =
+        Orbit2D::new_circular(1.0, 0.0, 1.0, OrbitDirection2D::CounterClockwise);
+    let clockwise = Orbit2D::new_circular(1.0, 0.0, 1.0, OrbitDirection2D::Clockwise);
+
+    let ccw_sv = counter_clockwise.get_state_vectors_at_true_anomaly(0.0);
+    let cw_sv = clockwise.get_state_vectors_at_true_anomaly(0.0);
+
+    assert_eq!(
+        counter_clockwise.get_direction(),
+        OrbitDirection2D::CounterClockwise
+    );
+    assert_eq!(clockwise.get_direction(), OrbitDirection2D::Clockwise);
+    assert_almost_eq_vec2(ccw_sv.position, DVec2::X, "ccw position at periapsis");
+    assert_almost_eq_vec2(cw_sv.position, DVec2::X, "cw position at periapsis");
+    assert_almost_eq_vec2(ccw_sv.velocity, DVec2::Y, "ccw velocity at periapsis");
+    assert_almost_eq_vec2(cw_sv.velocity, -DVec2::Y, "cw velocity at periapsis");
+}
+
+#[test]
+fn state_vectors_2d_infer_clockwise_direction() {
+    let sv = StateVectors2D {
+        position: DVec2::X,
+        velocity: -DVec2::Y,
+    };
+
+    let orbit = sv.to_cached_orbit(1.0, 0.0);
+    let roundtrip = orbit.get_state_vectors_at_time(0.0);
+
+    assert_eq!(orbit.get_direction(), OrbitDirection2D::Clockwise);
+    assert_almost_eq_vec2(
+        roundtrip.position,
+        sv.position,
+        "clockwise position roundtrip",
+    );
+    assert_almost_eq_vec2(
+        roundtrip.velocity,
+        sv.velocity,
+        "clockwise velocity roundtrip",
+    );
+}
+
+#[test]
+fn eccentric_2d_clockwise_state_vectors_roundtrip() {
+    let orbit = Orbit2D::new(0.4, 2.0, 0.7, 0.3, 3.0, OrbitDirection2D::Clockwise);
+    let time = 0.25;
+    let sv = orbit.get_state_vectors_at_time(time);
+    let new_orbit = sv.to_cached_orbit(orbit.get_gravitational_parameter(), time);
+    let roundtrip = new_orbit.get_state_vectors_at_time(time);
+
+    assert_eq!(new_orbit.get_direction(), OrbitDirection2D::Clockwise);
+    assert_almost_eq_vec2(
+        roundtrip.position,
+        sv.position,
+        "clockwise eccentric position",
+    );
+    assert_almost_eq_vec2(
+        roundtrip.velocity,
+        sv.velocity,
+        "clockwise eccentric velocity",
     );
 }
 
@@ -1362,7 +1426,9 @@ fn orbit_dim_parity_base_test(orbit2: &Orbit2D) {
 #[test]
 fn orbit_dim_parity_test() {
     for orbit in random_any_2d_iter(1000) {
-        orbit_dim_parity_base_test(&orbit.into());
+        let mut orbit: Orbit2D = orbit.into();
+        orbit.set_direction(OrbitDirection2D::CounterClockwise);
+        orbit_dim_parity_base_test(&orbit);
     }
 }
 
