@@ -37,7 +37,7 @@ impl OrbitDirection2D {
 
     /// Gets the direction represented by a signed 2D angular momentum scalar.
     #[must_use]
-    pub const fn from_angular_momentum(angular_momentum: f64) -> Self {
+    pub fn from_angular_momentum(angular_momentum: f64) -> Self {
         if angular_momentum < 0.0 {
             Self::Clockwise
         } else {
